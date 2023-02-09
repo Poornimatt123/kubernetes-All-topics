@@ -1,0 +1,465 @@
+  sudo -i
+nano install.sh
+curl https://get.docker.com/ | bash
+sudo apt-get update && sudo apt-get install -y apt-transport-https curl
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
+deb https://apt.kubernetes.io/ kubernetes-xenial main
+EOF
+sudo apt-get update
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+
+sh install.sh
+rm /etc/containerd/config.toml
+systemctl restart containerd
+kubeadm init --pod-network-cidr 192.168.0.0/16
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+curl https://docs.projectcalico.org/manifests/calico.yaml -O
+kubectl apply -f calico.yaml
+kubectl get pods -A
+kubectl get nodes 
+kubectl get pods -A
+
+
+
+kubectl apply -f https://docs.projectcalico.org/v3.14/manifests/calico.yaml
+
+
+
+(IN WORKERNODE1)
+
+sudo -i
+nano install.sh
+curl https://get.docker.com/ | bash
+sudo apt-get update && sudo apt-get install -y apt-transport-https curl
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
+deb https://apt.kubernetes.io/ kubernetes-xenial main
+EOF
+sudo apt-get update
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+sh install.sh
+rm /etc/containerd/config.toml
+systemctl restart containerd
+kubeadm join 172.31.21.134:6443 --token yg4wxy.5g22s4yo1ihopwqh \
+        --discovery-token-ca-cert-hash sha256:b0fbcc74b802e1f6f882978aa2e2ffc63e255c2830148ee3848b3bac120edc76
+
+
+
+(IN MASTER )
+ kubectl get nodes
+kubectl get pods -A      or  kubectl get pods --all-namespaces
+  kubectl get pods -A -o wide
+
+kubectl create namespace dev
+kubectl get namespace
+kubectl create ns stage
+kubectl get ns
+kubectl create ns poornima-shinde
+kubectl get ns
+ 
+
+(SIMPLE YML FILE CREATE)
+vi namespace.yml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: development
+  labels:
+    name: development
+
+kubectl create -f namespace.yml
+kubectl get ns
+-----------------------------------------------------------------------------------------------------------
+vi pod1.yml
+kind: Pod
+apiVersion: v1
+metadata:
+  name: testpod
+spec:
+  containers:
+    - name: c00
+      image: ubuntu
+      command: ["/bin/bash", "-c", "while true; do echo Hello-Poornima; sleep 5 ; done"]
+    - name: c01
+      image: httpd
+      ports:
+       - containerPort: 80
+
+kubectl apply -f pod1.yml
+kubectl get pods
+kubectl exec testpod -it c c00 -- /bin/bash
+apt update && apt install curl
+curl localhost:80
+
+(U WANT TO DELETE THIS FILE , THAN USE THIS COMMAND)
+kubectl delete -f pod1.yml
+-----------------------------------------------------------------------------------------------------------------
+(1 NODE INSIDE 2 PODS CREATE)
+vi pod2.yml
+kind: Pod
+apiVersion: v1
+metadata:
+  name: testpod1
+spec:
+  containers:
+    - name: c02
+      image: nginx
+      ports:
+       - containerPort: 80
+
+
+
+vi pod3.yml
+kind: Pod
+apiVersion: v1
+metadata:
+  name: testpod12
+spec:
+  containers:
+    - name: c03
+      image: httpd
+      ports:
+       - containerPort: 80
+
+kubectl apply -f pod2.yml
+kubectl apply -f pod3.yml
+
+kubectl get pods
+kubectl get pods -o wide
+curl (PASTE THE IP)
+CURL (PASTE THE IP_
+--------------------------------------------------------------------------------------------
+vi deployhttpd.yml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+   name: mydeployments
+spec:
+   replicas: 1
+   selector:      # tells the controller which pods to watch/belong to
+    matchLabels:
+     name: deployment
+   template:
+     metadata:
+       name: testpod1
+       labels:
+         name: deployment
+     spec:
+      containers:
+        - name: c00
+          image: httpd
+          ports:
+          - containerPort: 80
+
+kubectl apply -f deployhttpd.yml
+kubectl get pods
+kubectl get pods -o wide
+curl (paste ip):80
+  --------------------------------------------------
+
+
+vi service.yml
+kind: Service                             # Defines to create Service type Object
+apiVersion: v1
+metadata:
+  name: demoservice
+spec:
+  ports:
+    - port: 80                               # Containers port exposed
+      targetPort: 80                     # Pods port
+  selector:
+    name: deployment                    # Apply this service to any pods which has the specific label
+  type: ClusterIP                       # Specifies the service type i.e ClusterIP or NodePort
+
+
+
+kubectl apply -f service.yml
+kubectl get svc
+curl (PASTE IP)
+
+
+
+-----------------------------------------------------------------------------------------------------------
+(NODE PORT)
+vi deployment.yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpd-deployment-nautilus
+  namespace: httpd-namespace-nautilus
+  labels:
+    app: httpd_app_nautilus
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: httpd_app_nautilus
+  template:
+    metadata:
+      labels:
+        app: httpd_app_nautilus
+    spec:
+      containers:
+        - name: httpd-container-nautilus
+          image: httpd:latest
+          ports:
+            - containerPort: 80
+
+
+vi nodeport.yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpd-service-nautilus
+  namespace: httpd-namespace-nautilus
+spec:
+  type: NodePort
+  selector:
+    app: httpd_app_nautilus
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30004
+
+kubectl create ns httpd-namespace-nautilus
+ 
+kubectl apply -f deployment.yml -n httpd-namespace-nautilus
+kubectl apply -f nodeport.yml -n httpd-namespace-nautilus
+
+
+
+kubectl get svc
+(IPV DNC IP PASTE IN CROME TAKE TO INSTANCE)
+
+s
+
+
+----------------------------------------------------------------
+ingress 
+vi ingressrules.yml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minimal-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: demoservice
+            port:
+              number: 80
+kubectl apply -f ingressrules.yml
+ kubectl get ing -A
+curl https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.44.0/deploy/static/provider/baremetal/deploy.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.5.1/deploy/static/provider/baremetal/deploy.yaml
+wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.5.1/deploy/static/provider/baremetal/deploy.yaml
+ls
+vi deploy.yaml
+kubectl get svc -A
+kubectl get ing -A
+NAMESPACE   NAME              CLASS   HOSTS   ADDRESS        PORTS   AGE
+default     minimal-ingress   nginx   *       172.31.38.90   80      3m23s
+curl 172.31.38.90:31253
+
+ kubectl describe svc poonam-service
+
+go to crome 
+(PUBLIC IP WITH NODEPOT-IP)
+
+------------------------------------------------------------------------------------------
+SECRET KUBERNETES
+
+kubectl get pod -A
+echo "myusername-poornima" > username.txt; echo "mypassword123" > password.txt
+cat username.txt
+cat password.txt
+kubectl create secret generic mysecret --from-file=username.txt --from-file=password.txt
+kubectl get secret
+kubectl describe secret mysecret
+
+
+vi secret.yml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myvolsecret
+spec:
+  containers:
+  - name: c1
+    image: centos
+    command: ["/bin/bash", "-c", "while true; do echo poornima-devops; sleep 5 ; done"]
+    volumeMounts:
+      - name: testsecret
+        mountPath: "/tmp/mysecrets"   # the secret files will be mounted as ReadOnly by default here
+  volumes:
+  - name: testsecret
+    secret:
+       secretName: mysecret
+
+kubectl apply -f secret.yml
+kubectl get pods
+kubectl exec myvolsecret -it -- /bin/bash
+cd /tmp
+ls
+cd mysecrets/
+ls
+cat password.txt
+cat username.txt
+
+------------------------------------------------------------------
+CRON JOBS KUBERNETES
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: example-cron-job
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: example-container
+            image: busybox
+            command:
+            - "echo"
+            - "Running example cron job"
+          restartPolicy: OnFailure
+
+
+
+https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/
+
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cluster-backup-cron-job
+spec:
+  schedule: "0 0 * * *" # this cron job runs every day at midnight
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: cluster-backup-container
+            image: alpine
+            command:
+            - "sh"
+            - "-c"
+            - |
+              set -e
+              backup_dir=backups/$(date +%Y-%m-%d)
+              mkdir -p $backup_dir
+              kubectl get all --all-namespaces -o yaml > $backup_dir/backup.yaml
+          volumeMounts:
+          - name: backups-volume
+            mountPath: /backups
+          restartPolicy: OnFailure
+  volumeClaimTemplates:
+  - metadata:
+      name: backups-volume
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+
+
+
+
+
+
+kubectl rollout undo deploy my-deployment-name -n my-namespace
+
+--------------------------------------------------------------------------
+
+PERSISTENT VOLUME
+================================
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: myebsvol
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  awsElasticBlockStore:
+    volumeID: vol-036d41a7be2b7d65f          # YAHAN APNI EBS VOLUME ID DAALO
+    fsType: ext4
+	
+	kubectl get pv 
+	
+	
+	
+============
+
+
+
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: myebsvolclaim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+==================================================================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pvdeploy
+spec:
+  replicas: 1
+  selector:      # tells the controller which pods to watch/belong to
+    matchLabels:
+     app: mypv
+  template:
+    metadata:
+      labels:
+        app: mypv
+    spec:
+      containers:
+      - name: shell
+        image: centos
+        command: ["bin/bash", "-c", "sleep 10000"]
+        volumeMounts:
+        - name: mypd
+          mountPath: "/tmp/persistent"
+      volumes:
+        - name: mypd
+          persistentVolumeClaim:
+            claimName: myebsvolclaim
+
+
+vi pv.yml
+kubectl apply -f pv.yml
+vi pvc.yml
+kubectl apply -f pvc.yml
+kubectl get pv
+kubectl get pvc
+vi deploypvc.yml
+kubectl apply -f deploypvc.yml
+kubectl get deploy
+kubectl get deploy
+kubectl get rs
+kubectl get pods
+kubectl get pods
+
